@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "local-voice-chat-ai"
+version = "0.1.0"
+description = ""
+authors = ["zizo <zizo.toiawase@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+
+[tool.poetry.dependencies]
+python = "^3.12"
+black = "^25.1.0"
+pyaudio = "^0.2.14"
+faster-whisper = "^1.1.1"
+requests = "^2.32.3"
+pytest = "^8.4.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
