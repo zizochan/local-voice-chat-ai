@@ -1,5 +1,3 @@
-# recorder.py
-
 import pyaudio
 import wave
 from typing import Optional
@@ -13,8 +11,9 @@ def record_audio(
     filename: str = WAV_FILENAME,
     duration: int = RECORD_SECONDS,
     rate: int = RATE,
+    should_stop: Optional[callable] = None,
 ) -> None:
-    """マイクから音声を録音し、WAVファイルとして保存する"""
+    """マイクから音声を録音し、WAVファイルとして保存する。should_stop()がTrueなら途中で中断"""
     print("🎙️ 録音開始...")
     p = pyaudio.PyAudio()
     stream = p.open(
@@ -25,7 +24,13 @@ def record_audio(
         frames_per_buffer=1024,
     )
 
-    frames = [stream.read(1024) for _ in range(0, int(rate / 1024 * duration))]
+    frames = []
+    total_chunks = int(rate / 1024 * duration)
+    for _ in range(total_chunks):
+        if should_stop and should_stop():
+            print("🛑 録音中断")
+            break
+        frames.append(stream.read(1024))
 
     print("🛑 録音終了")
 

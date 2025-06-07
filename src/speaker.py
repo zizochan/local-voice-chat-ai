@@ -1,5 +1,3 @@
-# speaker.py
-
 import requests
 import os
 import logging

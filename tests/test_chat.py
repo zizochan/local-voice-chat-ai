@@ -59,3 +59,16 @@ def test_get_model_list_error(mock_get):
     mock_get.side_effect = Exception("fail")
     models = chat.get_model_list()
     assert models == []
+
+
+@patch("chat.query_lmstudio")
+def test_chat_with_lmstudio(mock_query):
+    # ユーザー発言追加→AI応答追加→履歴が正しくなるか
+    mock_query.return_value = ("AI reply", [])
+    messages = []
+    reply, new_messages = chat.chat_with_lmstudio("こんにちは", messages, "model")
+    assert reply == "AI reply"
+    assert new_messages[0]["role"] == "user"
+    assert new_messages[0]["content"] == "こんにちは"
+    assert new_messages[1]["role"] == "assistant"
+    assert new_messages[1]["content"] == "AI reply"

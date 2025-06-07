@@ -1,10 +1,14 @@
-# main.py
-
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from recorder import record_audio
 from transcriber import transcribe_audio
-from chat import load_history, save_history, query_lmstudio, get_model_list
+from chat import (
+    load_history,
+    save_history,
+    query_lmstudio,
+    get_model_list,
+    chat_with_lmstudio,
+)
 from speaker import speak_with_aivis_speech, get_speaker_choices
 import threading
 from typing import List, Dict, Any
@@ -55,28 +59,49 @@ def run_gui():
     log_box = scrolledtext.ScrolledText(root, height=15)
     log_box.pack()
 
+    def set_recording_state():
+        start_button.config(text="● 録音中…", state="disabled")
+
+    def set_processing_state():
+        start_button.config(text="AI処理中…", state="disabled")
+
+    def set_idle_state():
+        start_button.config(text="▶️ 録音開始", state="normal")
+
     def conversation_loop():
         nonlocal messages, is_listening
         is_listening = True
+        set_recording_state()
         speaker_id = int(speaker_var.get().split(":")[0])
         system_msg = system_entry.get("1.0", "end").strip()
         if not messages:
             messages = load_history(system_msg)
         while is_listening:
-            record_audio()
-            text = transcribe_audio()
-            log_box.insert("end", f"👤 You: {text}\n")
-            log_box.see("end")
-            reply, messages = query_lmstudio(text, messages, model_var.get())
+            record_audio(should_stop=lambda: not is_listening)
+            if not is_listening:
+                break  # 停止時はAI処理に進まず即座に抜ける
+            set_processing_state()
+            try:
+                text = transcribe_audio()
+                log_box.insert("end", f"👤 You: {text}\n")
+            except RuntimeError as e:
+                log_box.insert("end", f"⚠️ {str(e)}\n")
+                log_box.see("end")
+                set_recording_state()
+                continue
+            reply, messages = chat_with_lmstudio(text, messages, model_var.get())
             log_box.insert("end", f"🤖 AI: {reply}\n\n")
             log_box.see("end")
             speak_with_aivis_speech(reply, speaker_id)
             save_history(messages)
+            set_recording_state()
+        set_idle_state()
 
     def start_thread():
         threading.Thread(target=conversation_loop, daemon=True).start()
 
     def stop_listening():
+        print("⏹️ 停止")
         nonlocal is_listening
         is_listening = False
 

@@ -1,5 +1,3 @@
-# chat.py
-
 import json
 import os
 import requests
@@ -46,7 +44,9 @@ def query_lmstudio(
         )
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"].strip(), messages
+        content = data["choices"][0]["message"]["content"].strip()
+        print(f"💬 AI応答: {content}")
+        return content, messages
     except Exception as e:
         logging.warning(f"⚠️ LM Studio エラー: {e}")
         return "", messages
@@ -63,3 +63,15 @@ def get_model_list() -> List[str]:
     except Exception as e:
         logging.warning(f"⚠️ モデル一覧取得エラー: {e}")
         return []
+
+
+def chat_with_lmstudio(
+    text: str, messages: List[Dict[str, Any]], model_id: str
+) -> Tuple[str, List[Dict[str, Any]]]:
+    """
+    ユーザー発言を履歴に追加し、AI応答も履歴に追加して返す
+    """
+    messages.append({"role": "user", "content": text})
+    reply, _ = query_lmstudio(text, messages, model_id)
+    messages.append({"role": "assistant", "content": reply})
+    return reply, messages
