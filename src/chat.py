@@ -8,10 +8,23 @@ HISTORY_FILE = "tmp/messages.json"
 LM_STUDIO_API_URL = "http://localhost:1234/v1"
 
 
-def load_history(system_message: str) -> List[Dict[str, Any]]:
+def make_log_path(log_dir, scenario_filename, character_filename):
+    if not scenario_filename or not character_filename:
+        raise ValueError("scenario_filenameとcharacter_filenameは必須です")
+    base = f"{os.path.splitext(scenario_filename)[0]}__{os.path.splitext(character_filename)[0]}.json"
+    return os.path.join(log_dir, base)
+
+
+def load_history(
+    system_message: str, scenario_filename: str = None, character_filename: str = None
+) -> List[Dict[str, Any]]:
     """履歴ファイルがあれば読み込み、なければsystemメッセージで初期化したリストを返す"""
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+    log_dir = os.environ.get("TMP_DIR") or os.path.join(
+        os.path.dirname(__file__), "../tmp"
+    )
+    log_path = make_log_path(log_dir, scenario_filename, character_filename)
+    if os.path.exists(log_path):
+        with open(log_path, encoding="utf-8") as f:
             messages = json.load(f)
             print("📦 履歴読み込み完了")
             return messages
@@ -20,9 +33,18 @@ def load_history(system_message: str) -> List[Dict[str, Any]]:
         return [{"role": "system", "content": system_message}]
 
 
-def save_history(messages: List[Dict[str, Any]]) -> None:
+def save_history(
+    messages: List[Dict[str, Any]],
+    scenario_filename: str = None,
+    character_filename: str = None,
+) -> None:
     """履歴をファイルに保存する"""
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+    log_dir = os.environ.get("TMP_DIR") or os.path.join(
+        os.path.dirname(__file__), "../tmp"
+    )
+    log_path = make_log_path(log_dir, scenario_filename, character_filename)
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=2)
 
 
@@ -30,6 +52,7 @@ def query_lmstudio(
     text: str, messages: List[Dict[str, Any]], model_id: str
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """LM Studio APIに会話を投げて応答を取得する"""
+    print(f"💬 LM Studio送信開始")
     headers = {"Content-Type": "application/json"}
     payload = {
         "model": model_id,

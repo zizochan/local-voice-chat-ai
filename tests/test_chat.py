@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, mock_open
 import chat
+import os
 
 # load_history, save_history, query_lmstudio, get_model_list のテスト
 
@@ -10,23 +11,32 @@ def test_load_history_file_exists(monkeypatch):
     monkeypatch.setattr("os.path.exists", lambda x: True)
     m = mock_open(read_data=data)
     with patch("builtins.open", m):
-        messages = chat.load_history("sys")
+        messages = chat.load_history(
+            "sys", "sample_scenario.txt", "sample_character.txt"
+        )
         assert messages == [{"role": "user", "content": "hi"}]
 
 
 def test_load_history_file_not_exists(monkeypatch):
     monkeypatch.setattr("os.path.exists", lambda x: False)
-    messages = chat.load_history("sysmsg")
+    messages = chat.load_history(
+        "sysmsg", "sample_scenario.txt", "sample_character.txt"
+    )
     assert messages == [{"role": "system", "content": "sysmsg"}]
 
 
 def test_save_history(tmp_path):
     messages = [{"role": "user", "content": "hi"}]
-    file_path = tmp_path / "messages.json"
-    with patch("chat.HISTORY_FILE", str(file_path)):
-        chat.save_history(messages)
+    os.environ["TMP_DIR"] = str(tmp_path)
+    try:
+        chat.save_history(messages, "sample_scenario.txt", "sample_character.txt")
+        file_path = tmp_path / "sample_scenario__sample_character.json"
+        assert file_path.exists()
         with open(file_path, encoding="utf-8") as f:
-            assert "hi" in f.read()
+            data = f.read()
+        assert "hi" in data
+    finally:
+        del os.environ["TMP_DIR"]
 
 
 @patch("requests.post")

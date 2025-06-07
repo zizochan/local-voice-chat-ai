@@ -19,7 +19,7 @@ def get_speaker_choices() -> List[str]:
         return choices
     except Exception as e:
         logging.warning(f"⚠️ 話者リスト取得失敗: {e}")
-        return ["1: サンプルキャラクター"]
+        return ["(取得失敗)"]
 
 
 def speak_with_aivis_speech(text: str, speaker_id: int = 1) -> None:
