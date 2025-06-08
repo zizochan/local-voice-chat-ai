@@ -15,6 +15,14 @@ import threading
 import os
 from config_dialog import ConfigDialog, show_config_dialog
 from ui_parts import create_model_dropdown, create_speaker_dropdown
+from config_loader import (
+    get_model_list as loader_get_model_list,
+    get_speaker_choices as loader_get_speaker_choices,
+    get_character_list,
+    get_scenario_list,
+    get_initial_selections,
+    save_config,
+)
 
 CONFIG_WINDOW_SIZE = "400x500"
 WINDOW_SIZE = "500x700"
@@ -43,17 +51,20 @@ def show_main_window(
 
 
 def run_gui(
-    get_scenario_list, load_scenario_content, get_character_list, load_character_content
+    get_scenario_list_func=None,
+    load_scenario_content=None,
+    get_character_list_func=None,
+    load_character_content=None,
 ):
-    from chat import get_model_list
-    from speaker import get_speaker_choices
-
-    # --- 設定ダイアログのみを最初に表示 ---
-    model_list = get_model_list()
-    speaker_choices = get_speaker_choices()
+    # 一覧取得
+    model_list = loader_get_model_list()
+    speaker_choices = loader_get_speaker_choices()
     character_files = get_character_list()
     scenario_files = get_scenario_list()
+    # 初期値取得
+    initial = get_initial_selections()
 
+    # 設定ダイアログ表示
     config = show_config_dialog(
         model_list,
         speaker_choices,
@@ -61,13 +72,15 @@ def run_gui(
         scenario_files,
         load_scenario_content,
         load_character_content,
+        initial,
     )
     if not config:
         return
+    save_config(config)
     show_main_window(
         config,
-        get_scenario_list,
+        get_scenario_list_func or get_scenario_list,
         load_scenario_content,
-        get_character_list,
+        get_character_list_func or get_character_list,
         load_character_content,
     )

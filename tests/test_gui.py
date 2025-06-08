@@ -101,3 +101,24 @@ def test_button_layout(monkeypatch):
                         found = True
             assert found
             root.destroy()
+
+
+def test_config_json_does_not_save_system(tmp_path, monkeypatch):
+    # config.jsonにはsystemが保存されないことを確認
+    import json
+    from config_loader import save_config, load_config
+
+    config = {
+        "scenario": "s1",
+        "character": "c1",
+        "system": "sys",
+        "model": "m",
+        "speaker": "0:dummy",
+    }
+    config_path = tmp_path / "config.json"
+    save_config(
+        {k: v for k, v in config.items() if k != "system"}, path=str(config_path)
+    )
+    # systemを含めて保存しない仕様なので、systemを除外して保存
+    loaded = load_config(path=str(config_path))
+    assert "system" not in loaded

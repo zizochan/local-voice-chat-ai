@@ -16,6 +16,7 @@ class ConfigDialog(tk.Tk):
         scenario_files,
         load_scenario_content,
         load_character_content,
+        initial=None,
     ):
         super().__init__()
         self.title("設定")
@@ -27,6 +28,7 @@ class ConfigDialog(tk.Tk):
         self.load_character_content = load_character_content
         self.character_files = character_files
         self.scenario_files = scenario_files
+        initial = initial or {}
 
         # キャラクター
         tk.Label(self, text="キャラクター選択").pack(pady=(10, 0))
@@ -36,7 +38,12 @@ class ConfigDialog(tk.Tk):
         )
         self.character_combobox["values"] = character_files
         if character_files:
-            self.character_combobox.current(0)
+            idx = (
+                character_files.index(initial.get("character"))
+                if initial.get("character") in character_files
+                else 0
+            )
+            self.character_combobox.current(idx)
         self.character_combobox.pack()
         self.character_combobox.bind("<<ComboboxSelected>>", self.update_system_prompt)
 
@@ -48,7 +55,12 @@ class ConfigDialog(tk.Tk):
         )
         self.scenario_combobox["values"] = scenario_files
         if scenario_files:
-            self.scenario_combobox.current(0)
+            idx = (
+                scenario_files.index(initial.get("scenario"))
+                if initial.get("scenario") in scenario_files
+                else 0
+            )
+            self.scenario_combobox.current(idx)
         self.scenario_combobox.pack()
         self.scenario_combobox.bind("<<ComboboxSelected>>", self.update_system_prompt)
 
@@ -58,6 +70,13 @@ class ConfigDialog(tk.Tk):
         )
         self.model_combobox = model_combobox
         model_values = model_list if model_list else ["(取得失敗)"]
+        if model_list:
+            idx = (
+                model_list.index(initial.get("model"))
+                if initial.get("model") in model_list
+                else 0
+            )
+            self.model_combobox.current(idx)
 
         # ボイス
         speaker_combobox, self.speaker_var = create_speaker_dropdown(
@@ -65,6 +84,13 @@ class ConfigDialog(tk.Tk):
         )
         self.speaker_combobox = speaker_combobox
         speaker_values = speaker_choices if speaker_choices else ["(取得失敗)"]
+        if speaker_choices:
+            idx = (
+                speaker_choices.index(initial.get("speaker"))
+                if initial.get("speaker") in speaker_choices
+                else 0
+            )
+            self.speaker_combobox.current(idx)
 
         # システムプロンプト
         tk.Label(self, text="システムプロンプト").pack(pady=(10, 0))
@@ -171,6 +197,7 @@ def show_config_dialog(
     scenario_files,
     load_scenario_content,
     load_character_content,
+    initial=None,
 ):
     dialog = ConfigDialog(
         model_list,
@@ -179,6 +206,7 @@ def show_config_dialog(
         scenario_files,
         load_scenario_content,
         load_character_content,
+        initial,
     )
     dialog.mainloop()
     return dialog.result

@@ -1,6 +1,6 @@
 import pytest
 import tkinter as tk
-from assistant_window import show_main_window
+import assistant_window
 from unittest import mock
 
 
@@ -12,21 +12,19 @@ def setup_app(monkeypatch):
         "model": "m",
         "speaker": "0:dummy",
     }
-    monkeypatch.setattr(
-        "assistant_window.chat_with_lmstudio", lambda *a, **k: ("reply", [])
-    )
-    monkeypatch.setattr(
-        "assistant_window.speak_with_aivis_speech", lambda *a, **k: None
-    )
-    monkeypatch.setattr("assistant_window.save_history", lambda *a, **k: None)
-    monkeypatch.setattr("assistant_window.load_history", lambda *a, **k: [])
-    monkeypatch.setattr("assistant_window.record_audio", lambda *a, **k: None)
-    monkeypatch.setattr(
-        "assistant_window.transcribe_audio", lambda *a, **k: "user text"
-    )
+    dummy = lambda *a, **k: ("reply", [])
+    dummy_none = lambda *a, **k: None
+    dummy_history = lambda *a, **k: [{"role": "system", "content": "sys"}]
     with mock.patch("tkinter.Tk.mainloop", return_value=None):
         root = tk.Tk()
-        win = show_main_window(config, root=root)
+        win = assistant_window.show_main_window(
+            config,
+            root=root,
+            chat_with_lmstudio_func=dummy,
+            speak_with_aivis_speech_func=dummy_none,
+            save_history_func=dummy_none,
+            load_history_func=dummy_history,
+        )
         return root, win
 
 
