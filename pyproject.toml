@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "local-voice-chat-ai"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 authors = ["zizo <zizo.toiawase@gmail.com>"]
 readme = "README.md"

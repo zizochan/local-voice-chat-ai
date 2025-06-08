@@ -163,8 +163,10 @@ class ConfigDialog(tk.Tk):
             except Exception:
                 pass
         prompt = (
-            scenario_content
-            + ("\n" if scenario_content and character_content else "")
+            "### シナリオ ###\n"
+            + scenario_content
+            + "\n\n"
+            + "### キャラクター設定 ###\n"
             + character_content
         )
         self.set_system_prompt(prompt)
@@ -185,9 +187,9 @@ class ConfigDialog(tk.Tk):
 
     def on_exit(self):
         self.destroy()
-        import os
+        import sys
 
-        os._exit(0)
+        sys.exit(0)  # os._exit(0) は強制終了なので使わない
 
 
 def show_config_dialog(

@@ -58,7 +58,7 @@ def show_main_window(
             elif msg["role"] == "assistant":
                 log_box.insert("end", f"🤖 AI: {msg['content']}\n\n")
             elif msg["role"] == "system":
-                log_box.insert("end", f"[system] {msg['content']}\n")
+                log_box.insert("end", f"[system] {msg['content']}\n\n")
         log_box.see("end")
 
     # テキスト入力欄と送信ボタン
@@ -299,7 +299,9 @@ def show_main_window(
         set_idle_state()
 
     def on_exit():
-        root.destroy()
+        # GUIの破棄は必ずメインスレッドで行う
+        if root:
+            root.after(0, root.destroy)
         if (
             get_scenario_list
             and load_scenario_content
@@ -308,12 +310,15 @@ def show_main_window(
         ):
             from gui import run_gui
 
-            run_gui(
-                get_scenario_list,
-                load_scenario_content,
-                get_character_list,
-                load_character_content,
-            )
+            def rerun():
+                run_gui(
+                    get_scenario_list,
+                    load_scenario_content,
+                    get_character_list,
+                    load_character_content,
+                )
+
+            root.after(0, rerun)
 
     state = "running"
     update_log_box()

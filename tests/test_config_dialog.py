@@ -21,7 +21,7 @@ def test_config_dialog_buttons():
 
 
 def test_config_dialog_exit(monkeypatch):
-    # on_exitでos._exit(0)が呼ばれることを確認（SystemExit例外でテスト）
+    # on_exitでsys.exit(0)が呼ばれることを確認（SystemExit例外でテスト）
     dialog = ConfigDialog(
         model_list=["m1"],
         speaker_choices=["0:dummy"],
@@ -36,7 +36,7 @@ def test_config_dialog_exit(monkeypatch):
         called["exit"] = code
         raise SystemExit
 
-    monkeypatch.setattr("os._exit", fake_exit)
+    monkeypatch.setattr("sys.exit", fake_exit)
     with pytest.raises(SystemExit):
         dialog.on_exit()
     assert called["exit"] == 0

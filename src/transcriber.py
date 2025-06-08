@@ -46,6 +46,6 @@ def transcribe_audio(filename: str = WAV_FILENAME) -> str:
     segments, _ = model.transcribe(filename, beam_size=5, language="ja")
     full_text = "".join([seg.text for seg in segments])
     print("📝 認識結果:", full_text)
-    if not full_text.strip():
+    if not full_text or not full_text.strip():
         raise RuntimeError("音声が認識できませんでした。もう一度録音してください。")
     return full_text
