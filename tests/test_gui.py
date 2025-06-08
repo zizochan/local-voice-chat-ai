@@ -1,7 +1,8 @@
 import pytest
 import tkinter as tk
 from unittest import mock
-from gui import ConfigDialog, show_main_window
+from config_dialog import ConfigDialog
+from assistant_window import show_main_window
 import gui
 
 
@@ -47,7 +48,6 @@ def test_reset_history_called(monkeypatch):
         called["load"] = (system_msg, scenario, character)
         return [dict(role="system", content="sys")]  # dummy
 
-    monkeypatch.setattr(gui, "load_history", fake_load_history)
     config = {
         "scenario": "s1",
         "character": "c1",
@@ -55,15 +55,18 @@ def test_reset_history_called(monkeypatch):
         "model": "m",
         "speaker": "0:dummy",
     }
-    with mock.patch.object(
-        gui, "chat_with_lmstudio", return_value=("reply", [])
-    ), mock.patch.object(
-        gui, "speak_with_aivis_speech", return_value=None
-    ), mock.patch.object(
-        gui, "save_history", return_value=None
+    with mock.patch(
+        "assistant_window.chat_with_lmstudio", return_value=("reply", [])
+    ), mock.patch(
+        "assistant_window.speak_with_aivis_speech", return_value=None
+    ), mock.patch(
+        "assistant_window.save_history", return_value=None
     ):
         with mock.patch("tkinter.Tk.mainloop", return_value=None):
-            show_main_window(config)
+            show_main_window(
+                config,
+                load_history_func=fake_load_history,
+            )
     assert "load" in called
 
 

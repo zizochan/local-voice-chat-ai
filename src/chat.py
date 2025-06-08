@@ -76,12 +76,16 @@ def query_lmstudio(
 
 
 def get_model_list() -> List[str]:
-    """利用可能なモデル一覧を取得する"""
+    """利用可能なモデル一覧を取得する（text-embeddingで始まるモデルは除外）"""
     try:
         response = requests.get(f"{LM_STUDIO_API_URL}/models", timeout=10)
         response.raise_for_status()
         data = response.json()
-        model_ids = [model["id"] for model in data.get("data", [])]
+        model_ids = [
+            model["id"]
+            for model in data.get("data", [])
+            if not model["id"].startswith("text-embedding")
+        ]
         return model_ids
     except Exception as e:
         logging.warning(f"⚠️ モデル一覧取得エラー: {e}")

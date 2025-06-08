@@ -59,8 +59,16 @@ def test_query_lmstudio_error(mock_post):
 @patch("requests.get")
 def test_get_model_list_success(mock_get):
     mock_get.return_value.status_code = 200
-    mock_get.return_value.json.return_value = {"data": [{"id": "m1"}, {"id": "m2"}]}
+    mock_get.return_value.json.return_value = {
+        "data": [
+            {"id": "m1"},
+            {"id": "text-embedding-ada-002"},
+            {"id": "m2"},
+            {"id": "text-embedding-foo"},
+        ]
+    }
     models = chat.get_model_list()
+    # text-embeddingで始まるものは除外される
     assert models == ["m1", "m2"]
 
 

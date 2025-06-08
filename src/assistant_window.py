@@ -1,53 +1,16 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import scrolledtext
 from typing import List, Dict, Any
-from chat import (
-    load_history,
-    save_history,
-    query_lmstudio,
-    get_model_list,
-    chat_with_lmstudio,
-)
-from speaker import speak_with_aivis_speech, get_speaker_choices
+from chat import load_history, save_history, chat_with_lmstudio
+from speaker import speak_with_aivis_speech
 from recorder import record_audio
 from transcriber import transcribe_audio
 import threading
 import os
-from config_dialog import ConfigDialog
-from assistant_window import show_main_window
 
-CONFIG_WINDOW_SIZE = "400x500"
 WINDOW_SIZE = "500x700"
-DROPDOWN_WIDTH = 30
 
 
-def create_speaker_dropdown(root, speaker_choices: List[str], width=DROPDOWN_WIDTH):
-    tk.Label(root, text="ボイス選択").pack()
-    speaker_var = tk.StringVar()
-    speaker_dropdown = ttk.Combobox(root, textvariable=speaker_var, width=width)
-    speaker_dropdown["values"] = speaker_choices
-    speaker_dropdown.current(0)
-    speaker_dropdown.pack()
-    return speaker_dropdown, speaker_var
-
-
-def create_model_dropdown(root, models: List[str], width=DROPDOWN_WIDTH):
-    tk.Label(root, text="モデル選択").pack()
-    model_var = tk.StringVar()
-    model_combobox = ttk.Combobox(
-        root, textvariable=model_var, state="readonly", width=width
-    )
-    model_combobox.pack()
-    if models:
-        model_combobox["values"] = models
-        model_combobox.current(0)
-    else:
-        model_combobox["values"] = ["(取得失敗)"]
-        model_combobox.current(0)
-    return model_combobox, model_var
-
-
-# --- 音声AIアシスタント本体ウィンドウ ---
 def show_main_window(
     config,
     get_scenario_list=None,
@@ -55,6 +18,10 @@ def show_main_window(
     get_character_list=None,
     load_character_content=None,
     root=None,
+    load_history_func=load_history,
+    save_history_func=save_history,
+    chat_with_lmstudio_func=chat_with_lmstudio,
+    speak_with_aivis_speech_func=speak_with_aivis_speech,
 ):
     if root is None:
         root = tk.Tk()
@@ -70,7 +37,7 @@ def show_main_window(
     scenario_filename = config["scenario"] if config["scenario"] else None
     character_filename = config["character"] if config["character"] else None
     system_msg = config["system"]
-    messages = load_history(system_msg, scenario_filename, character_filename)
+    messages = load_history_func(system_msg, scenario_filename, character_filename)
 
     # チャットログ
     tk.Label(root, text="チャットログ").pack()
@@ -81,7 +48,9 @@ def show_main_window(
         log_box.delete("1.0", "end")
         nonlocal messages
         if not messages:
-            messages = load_history(system_msg, scenario_filename, character_filename)
+            messages = load_history_func(
+                system_msg, scenario_filename, character_filename
+            )
         for msg in messages:
             if msg["role"] == "user":
                 log_box.insert("end", f"👤 You: {msg['content']}\n")
@@ -107,13 +76,13 @@ def show_main_window(
         text_entry.delete(0, "end")
         log_box.insert("end", f"👤 You: {text}\n")
         log_box.see("end")
-        reply, messages = chat_with_lmstudio(text, messages, config["model"])
+        reply, messages = chat_with_lmstudio_func(text, messages, config["model"])
         log_box.insert("end", f"🤖 AI: {reply}\n\n")
         log_box.see("end")
         speaker_id = int(config["speaker"].split(":")[0])
         set_state("speaking")
-        speak_with_aivis_speech(reply, speaker_id)
-        save_history(messages, scenario_filename, character_filename)
+        speak_with_aivis_speech_func(reply, speaker_id)
+        save_history_func(messages, scenario_filename, character_filename)
         set_idle_state()
         update_log_box()
 
@@ -151,8 +120,7 @@ def show_main_window(
                 os.remove(log_path)
         except Exception:
             pass
-        # 履歴をsystemメッセージで初期化
-        messages = load_history(system_msg, scenario_filename, character_filename)
+        messages = load_history_func(system_msg, scenario_filename, character_filename)
         update_log_box()
 
     # 下段ボタンフレーム（履歴リセット・終了）
@@ -165,29 +133,6 @@ def show_main_window(
     exit_button = tk.Button(bottom_button_frame, text="終了", command=lambda: on_exit())
     exit_button.pack(side="left", padx=3)
 
-    def reset_history():
-        nonlocal messages
-        log_dir = os.environ.get("TMP_DIR") or os.path.join(
-            os.path.dirname(__file__), "../tmp"
-        )
-        try:
-            from chat import make_log_path
-
-            log_path = make_log_path(log_dir, scenario_filename, character_filename)
-            if os.path.exists(log_path):
-                os.remove(log_path)
-        except Exception:
-            pass
-        # 履歴をsystemメッセージで初期化
-        messages = load_history(system_msg, scenario_filename, character_filename)
-        update_log_box()
-
-    # ボタンフレーム
-    button_frame = tk.Frame(root)
-    button_frame.pack(pady=10)
-
-    # 状態管理のバグ修正: set_stateでstart_buttonのtextを常に"▶️ 録音開始"に戻すようにし、
-    # set_state("speaking")やset_state("processing")の後もstate="running"に戻すようにする
     def set_state(new_state):
         nonlocal state
         state = new_state
@@ -215,7 +160,6 @@ def show_main_window(
 
     def set_idle_state():
         set_state("idle")
-        # 状態を"running"に戻す（2回目以降の入力ができるように）
         nonlocal state
         state = "running"
 
@@ -258,14 +202,14 @@ def show_main_window(
             nonlocal messages
             text = "そのまま続けて"
             root.after(0, lambda: log_box.insert("end", f"🟢 Auto: {text}\n"))
-            reply, messages_ = chat_with_lmstudio(text, messages, config["model"])
+            reply, messages_ = chat_with_lmstudio_func(text, messages, config["model"])
             messages = messages_
             root.after(0, lambda: log_box.insert("end", f"🤖 AI: {reply}\n\n"))
             root.after(0, log_box.see, "end")
             speaker_id = int(config["speaker"].split(":")[0])
             set_state("speaking")
-            speak_with_aivis_speech(reply, speaker_id)
-            save_history(messages, scenario_filename, character_filename)
+            speak_with_aivis_speech_func(reply, speaker_id)
+            save_history_func(messages, scenario_filename, character_filename)
             root.after(0, set_idle_state)
             if auto_mode:
                 root.after(10000, auto_speak)
@@ -280,7 +224,9 @@ def show_main_window(
         set_recording_state()
         speaker_id = int(config["speaker"].split(":")[0])
         if not messages:
-            messages = load_history(system_msg, scenario_filename, character_filename)
+            messages = load_history_func(
+                system_msg, scenario_filename, character_filename
+            )
         while is_listening and state == "recording":
             set_state("recording")
             record_audio(should_stop=lambda: not is_listening)
@@ -295,24 +241,25 @@ def show_main_window(
                 root.after(0, log_box.see, "end")
                 set_recording_state()
                 continue
-            reply, messages = chat_with_lmstudio(text, messages, config["model"])
+            reply, messages = chat_with_lmstudio_func(text, messages, config["model"])
             root.after(0, lambda: log_box.insert("end", f"🤖 AI: {reply}\n\n"))
             root.after(0, log_box.see, "end")
             set_state("speaking")
-            speak_with_aivis_speech(reply, speaker_id)
-            save_history(messages, scenario_filename, character_filename)
+            speak_with_aivis_speech_func(reply, speaker_id)
+            save_history_func(messages, scenario_filename, character_filename)
             root.after(0, set_idle_state)
         set_idle_state()
 
     def on_exit():
         root.destroy()
-        # 設定ダイアログに戻る
         if (
             get_scenario_list
             and load_scenario_content
             and get_character_list
             and load_character_content
         ):
+            from gui import run_gui
+
             run_gui(
                 get_scenario_list,
                 load_scenario_content,
@@ -320,41 +267,7 @@ def show_main_window(
                 load_character_content,
             )
 
-    # 初期化
     state = "running"
     update_log_box()
     root.mainloop()
     return root
-
-
-def run_gui(
-    get_scenario_list, load_scenario_content, get_character_list, load_character_content
-):
-    from chat import get_model_list
-    from speaker import get_speaker_choices
-
-    # --- 設定ダイアログのみを最初に表示 ---
-    model_list = get_model_list()
-    speaker_choices = get_speaker_choices()
-    character_files = get_character_list()
-    scenario_files = get_scenario_list()
-
-    config_dialog = ConfigDialog(
-        model_list,
-        speaker_choices,
-        character_files,
-        scenario_files,
-        load_scenario_content,
-        load_character_content,
-    )
-    config_dialog.mainloop()
-    config = config_dialog.result
-    if not config:
-        return
-    show_main_window(
-        config,
-        get_scenario_list,
-        load_scenario_content,
-        get_character_list,
-        load_character_content,
-    )
