@@ -77,15 +77,31 @@ def show_main_window(
         text_entry.delete(0, "end")
         log_box.insert("end", f"👤 You: {text}\n")
         log_box.see("end")
-        reply, messages = chat_with_lmstudio_func(text, messages, config["model"])
-        log_box.insert("end", f"🤖 AI: {reply}\n\n")
-        log_box.see("end")
-        speaker_id = int(config["speaker"].split(":")[0])
-        set_state("speaking")
-        speak_with_aivis_speech_func(reply, speaker_id)
-        save_history_func(messages, scenario_filename, character_filename)
-        set_idle_state()
-        update_log_box()
+        set_processing_state()
+
+        def worker():
+            nonlocal messages
+            reply, messages_ = chat_with_lmstudio_func(text, messages, config["model"])
+            messages = messages_
+            speaker_id = int(config["speaker"].split(":")[0])
+
+            def update_before_speech():
+                log_box.insert("end", f"🤖 AI: {reply}\n\n")
+                log_box.see("end")
+                set_state("speaking")
+
+                # 音声再生・履歴保存・状態遷移は別スレッドで
+                def after_speech():
+                    speak_with_aivis_speech_func(reply, speaker_id)
+                    save_history_func(messages, scenario_filename, character_filename)
+                    set_idle_state()
+                    update_log_box()
+
+                threading.Thread(target=after_speech, daemon=True).start()
+
+            root.after(0, update_before_speech)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     send_button = tk.Button(text_frame, text="送信", command=on_send_text)
     send_button.pack(side="left")
