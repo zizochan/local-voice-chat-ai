@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from typing import List
+from ui_parts import create_model_dropdown, create_speaker_dropdown
 
 CONFIG_WINDOW_SIZE = "400x500"
 DROPDOWN_WIDTH = 30
@@ -52,26 +53,18 @@ class ConfigDialog(tk.Tk):
         self.scenario_combobox.bind("<<ComboboxSelected>>", self.update_system_prompt)
 
         # モデル
-        tk.Label(self, text="モデル選択").pack(pady=(10, 0))
-        self.model_var = tk.StringVar()
-        model_values = model_list if model_list else ["(取得失敗)"]
-        self.model_combobox = ttk.Combobox(
-            self, textvariable=self.model_var, state="readonly", width=30
+        model_combobox, self.model_var = create_model_dropdown(
+            self, model_list, width=30
         )
-        self.model_combobox["values"] = model_values
-        self.model_combobox.current(0)
-        self.model_combobox.pack()
+        self.model_combobox = model_combobox
+        model_values = model_list if model_list else ["(取得失敗)"]
 
         # ボイス
-        tk.Label(self, text="ボイス選択").pack(pady=(10, 0))
-        self.speaker_var = tk.StringVar()
-        speaker_values = speaker_choices if speaker_choices else ["(取得失敗)"]
-        self.speaker_combobox = ttk.Combobox(
-            self, textvariable=self.speaker_var, state="readonly", width=30
+        speaker_combobox, self.speaker_var = create_speaker_dropdown(
+            self, speaker_choices, width=30
         )
-        self.speaker_combobox["values"] = speaker_values
-        self.speaker_combobox.current(0)
-        self.speaker_combobox.pack()
+        self.speaker_combobox = speaker_combobox
+        speaker_values = speaker_choices if speaker_choices else ["(取得失敗)"]
 
         # システムプロンプト
         tk.Label(self, text="システムプロンプト").pack(pady=(10, 0))
@@ -169,3 +162,23 @@ class ConfigDialog(tk.Tk):
         import os
 
         os._exit(0)
+
+
+def show_config_dialog(
+    model_list,
+    speaker_choices,
+    character_files,
+    scenario_files,
+    load_scenario_content,
+    load_character_content,
+):
+    dialog = ConfigDialog(
+        model_list,
+        speaker_choices,
+        character_files,
+        scenario_files,
+        load_scenario_content,
+        load_character_content,
+    )
+    dialog.mainloop()
+    return dialog.result

@@ -98,10 +98,6 @@ def show_main_window(
         button_frame, text="▶️ 録音開始", command=lambda: start_thread()
     )
     start_button.pack(side="left", padx=3)
-    stop_button = tk.Button(
-        button_frame, text="⏹️ 停止", command=lambda: stop_listening()
-    )
-    stop_button.pack(side="left", padx=3)
     auto_button = tk.Button(
         button_frame, text="▶️ オート開始", command=lambda: start_auto_mode()
     )
@@ -137,10 +133,14 @@ def show_main_window(
         nonlocal state
         state = new_state
         if state == "idle":
-            start_button.config(text="▶️ 録音開始", state="normal")
+            start_button.config(
+                text="▶️ 録音開始", state="normal", command=lambda: start_thread()
+            )
             auto_button.config(state="normal")
         elif state == "recording":
-            start_button.config(text="● 録音中…", state="disabled")
+            start_button.config(
+                text="⏹️ 録音停止", state="normal", command=lambda: stop_listening()
+            )
             auto_button.config(state="disabled")
         elif state == "processing":
             start_button.config(text="AI処理中…", state="disabled")
