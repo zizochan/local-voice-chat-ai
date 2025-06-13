@@ -24,7 +24,7 @@ def get_speaker_choices() -> List[str]:
 
 def speak_with_aivis_speech(text: str, speaker_id: int = 1) -> None:
     """AIVIS APIで音声合成し、再生する"""
-    print("🔊 AIVIS Speech に送信中...")
+    print("🔊 AivisSpeech に送信中...")
     headers = {"Content-Type": "application/json"}
 
     # Step1: audio_query 作成

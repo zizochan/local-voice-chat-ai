@@ -1,6 +1,10 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
+import assistant_window
 import pytest
 import tkinter as tk
-from assistant_window import show_main_window
 from unittest import mock
 
 
@@ -18,7 +22,7 @@ def test_show_main_window_buttons(monkeypatch):
     dummy_none = lambda *a, **k: None
     with mock.patch("tkinter.Tk.mainloop", return_value=None):
         root = tk.Tk()
-        show_main_window(
+        assistant_window.show_main_window(
             config,
             root=root,
             chat_with_lmstudio_func=dummy,

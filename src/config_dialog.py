@@ -31,7 +31,7 @@ class ConfigDialog(tk.Tk):
         initial = initial or {}
 
         # キャラクター
-        tk.Label(self, text="キャラクター選択").pack(pady=(10, 0))
+        tk.Label(self, text="キャラクター選択").pack()
         self.character_var = tk.StringVar()
         self.character_combobox = ttk.Combobox(
             self, textvariable=self.character_var, state="readonly", width=30
@@ -48,7 +48,7 @@ class ConfigDialog(tk.Tk):
         self.character_combobox.bind("<<ComboboxSelected>>", self.update_system_prompt)
 
         # シナリオ
-        tk.Label(self, text="シナリオ選択").pack(pady=(10, 0))
+        tk.Label(self, text="シナリオ選択").pack()
         self.scenario_var = tk.StringVar()
         self.scenario_combobox = ttk.Combobox(
             self, textvariable=self.scenario_var, state="readonly", width=30

@@ -197,4 +197,6 @@ cython_debug/
 /tmp
 scenarios/*.txt
 characters/*.txt
+random_speech/*.txt
+
 

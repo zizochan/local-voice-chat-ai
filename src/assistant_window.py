@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import messagebox  # 追加
 from typing import List, Dict, Any
 from chat import load_history, save_history, chat_with_lmstudio
 from speaker import speak_with_aivis_speech
@@ -7,6 +8,7 @@ from recorder import record_audio
 from transcriber import transcribe_audio
 import threading
 import os
+import random
 
 WINDOW_SIZE = "500x700"
 AUTO_INTERVAL_MS = 1000
@@ -31,8 +33,6 @@ def show_main_window(
 
     messages: List[Dict[str, Any]] = []
     is_listening = False
-    auto_mode = False
-    auto_timer = None
     state = "init"
 
     scenario_filename = config["scenario"] if config["scenario"] else None
@@ -107,20 +107,68 @@ def show_main_window(
     send_button.pack(side="left")
     text_entry.bind("<Return>", on_send_text)
 
-    # ボタンフレーム（上段: 録音・停止・オート）
-    button_frame = tk.Frame(root)
-    button_frame.pack(pady=10)
+    # ボタンフレーム（上段: 録音・ランダム発言）より前にplay_random_speechを定義
+    def play_random_speech():
+        filename = selected_random_file.get()
+        if filename == "（ファイルなし）" or not filename:
+            log_box.insert("end", "⚠️ ランダム発言ファイルがありません\n")
+            log_box.see("end")
+            return
+        random_file = os.path.join(random_speech_dir, filename)
+        if not os.path.exists(random_file):
+            log_box.insert("end", "⚠️ ランダム発言ファイルが見つかりません\n")
+            log_box.see("end")
+            refresh_random_files()
+            return
+        with open(random_file, encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+        if not lines:
+            log_box.insert("end", "⚠️ ランダム発言が空です\n")
+            log_box.see("end")
+            return
+        text = random.choice(lines)
 
-    start_button = tk.Button(
-        button_frame, text="▶️ 録音開始", command=lambda: start_thread()
-    )
-    start_button.pack(side="left", padx=3)
-    auto_button = tk.Button(
-        button_frame, text="▶️ オート開始", command=lambda: start_auto_mode()
-    )
-    auto_button.pack(side="left", padx=3)
+        # on_send_textと同じ処理を呼び出す
+        def send_random():
+            nonlocal messages
+            if state != "running":
+                return
+            log_box.insert("end", f"👤 You: {text}\n")
+            log_box.see("end")
+            set_processing_state()
+
+            def worker():
+                nonlocal messages
+                reply, messages_ = chat_with_lmstudio_func(
+                    text, messages, config["model"]
+                )
+                messages = messages_
+                speaker_id = int(config["speaker"].split(":")[0])
+
+                def update_before_speech():
+                    log_box.insert("end", f"🤖 AI: {reply}\n\n")
+                    log_box.see("end")
+                    set_state("speaking")
+
+                    def after_speech():
+                        speak_with_aivis_speech_func(reply, speaker_id)
+                        save_history_func(
+                            messages, scenario_filename, character_filename
+                        )
+                        set_idle_state()
+                        update_log_box()
+
+                    threading.Thread(target=after_speech, daemon=True).start()
+
+                root.after(0, update_before_speech)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        send_random()
 
     def reset_history():
+        if not messagebox.askyesno("確認", "本当に履歴をリセットしますか？"):
+            return
         nonlocal messages
         log_dir = os.environ.get("TMP_DIR") or os.path.join(
             os.path.dirname(__file__), "../tmp"
@@ -136,21 +184,22 @@ def show_main_window(
         messages = load_history_func(system_msg, scenario_filename, character_filename)
         update_log_box()
 
-    # 下段ボタンフレーム（履歴リセット・終了）
-    bottom_button_frame = tk.Frame(root)
-    bottom_button_frame.pack(pady=(0, 10))
-    reset_button = tk.Button(
-        bottom_button_frame, text="🗑️ 履歴リセット", command=reset_history
+    # ボタンフレーム（録音・履歴リセット・終了を1行で並べる）
+    button_frame = tk.Frame(root)
+    button_frame.pack(pady=10)
+
+    start_button = tk.Button(
+        button_frame, text="▶️ 録音開始", command=lambda: start_thread()
     )
+    start_button.pack(side="left", padx=3)
+    reset_button = tk.Button(button_frame, text="🗑️ 履歴リセット", command=reset_history)
     reset_button.pack(side="left", padx=3)
-    exit_button = tk.Button(bottom_button_frame, text="終了", command=lambda: on_exit())
+    exit_button = tk.Button(button_frame, text="終了", command=lambda: on_exit())
     exit_button.pack(side="left", padx=3)
 
     # ボタン名（ラベル）を定数としてまとめる
     LABEL_START = "▶️ 録音開始"
     LABEL_STOP = "⏹️ 録音停止"
-    LABEL_AUTO_START = "▶️ オート開始"
-    LABEL_AUTO_STOP = "■ オート停止"
     LABEL_PROCESSING = "AI処理中…"
     LABEL_SPEAKING = "音声再生中…"
 
@@ -161,46 +210,33 @@ def show_main_window(
             start_button.config(
                 text=LABEL_START, state="normal", command=lambda: start_thread()
             )
-            auto_button.config(
-                text=LABEL_AUTO_START, state="normal", command=start_auto_mode
-            )
             send_button.config(state="normal")
             text_entry.config(state="normal")
             reset_button.config(state="normal")
+            if get_random_files() == ["（ファイルなし）"]:
+                random_button.config(state="disabled")
+            else:
+                random_button.config(state="normal")
         elif state == "recording":
             start_button.config(
                 text=LABEL_STOP, state="normal", command=lambda: stop_listening()
             )
-            auto_button.config(state="disabled")
             send_button.config(state="normal")
             text_entry.config(state="normal")
             reset_button.config(state="normal")
+            random_button.config(state="disabled")
         elif state == "processing":
             start_button.config(text=LABEL_PROCESSING, state="disabled")
-            if auto_mode:
-                auto_button.config(state="normal")
-            else:
-                auto_button.config(state="disabled")
             send_button.config(state="disabled")
             text_entry.config(state="disabled")
             reset_button.config(state="disabled")
+            random_button.config(state="disabled")
         elif state == "speaking":
             start_button.config(text=LABEL_SPEAKING, state="disabled")
-            if auto_mode:
-                auto_button.config(state="normal")
-            else:
-                auto_button.config(state="disabled")
             send_button.config(state="disabled")
             text_entry.config(state="disabled")
             reset_button.config(state="disabled")
-        elif state == "auto":
-            start_button.config(state="disabled")
-            auto_button.config(
-                text=LABEL_AUTO_STOP, state="normal", command=stop_auto_mode
-            )
-            send_button.config(state="disabled")
-            text_entry.config(state="disabled")
-            reset_button.config(state="disabled")
+            random_button.config(state="disabled")
 
     def set_recording_state():
         set_state("recording")
@@ -221,48 +257,6 @@ def show_main_window(
     def stop_listening():
         nonlocal is_listening
         is_listening = False
-
-    def start_auto_mode():
-        nonlocal auto_mode, auto_timer
-        if state != "running":
-            return
-        if not auto_mode:
-            auto_mode = True
-            set_state("auto")  # ここで即座にUIをオート状態に
-            auto_speak()
-            auto_button.config(text="■ オート停止", command=stop_auto_mode)
-
-    def stop_auto_mode():
-        nonlocal auto_mode, auto_timer
-        auto_mode = False
-        auto_button.config(state="disabled")
-
-    def auto_speak():
-        nonlocal messages, auto_timer, auto_mode
-        if not auto_mode:
-            return
-        set_state("auto")
-
-        def worker():
-            nonlocal messages
-            text = "そのまま続けて"
-            root.after(0, lambda: log_box.insert("end", f"🟢 Auto: {text}\n"))
-            reply, messages_ = chat_with_lmstudio_func(text, messages, config["model"])
-            messages = messages_
-            root.after(0, lambda: log_box.insert("end", f"🤖 AI: {reply}\n\n"))
-            root.after(0, log_box.see, "end")
-            speaker_id = int(config["speaker"].split(":")[0])
-            set_state("speaking")
-            speak_with_aivis_speech_func(reply, speaker_id)
-            save_history_func(messages, scenario_filename, character_filename)
-            # idleに戻さず、オート状態を維持
-            if auto_mode:
-                root.after(0, lambda: set_state("auto"))
-                root.after(AUTO_INTERVAL_MS, auto_speak)
-            else:
-                root.after(0, set_idle_state)
-
-        threading.Thread(target=worker, daemon=True).start()
 
     def conversation_loop():
         nonlocal messages, is_listening
@@ -319,6 +313,45 @@ def show_main_window(
                 )
 
             root.after(0, rerun)
+
+    # --- ランダム発言ファイル選択UIの追加 ---
+    random_speech_dir = os.path.join(os.path.dirname(__file__), "../random_speech")
+    if not os.path.exists(random_speech_dir):
+        os.makedirs(random_speech_dir)
+
+    def get_random_files():
+        files = [f for f in os.listdir(random_speech_dir) if f.endswith(".txt")]
+        return files if files else ["（ファイルなし）"]
+
+    random_files = get_random_files()
+    selected_random_file = tk.StringVar(value=random_files[0])
+
+    random_frame = tk.Frame(root)
+    random_frame.pack(pady=8)
+    random_menu = tk.OptionMenu(random_frame, selected_random_file, *random_files)
+    random_menu.pack(side="left", padx=2)
+    random_button = tk.Button(
+        random_frame, text="🎲 ランダム発言", command=lambda: play_random_speech()
+    )
+    random_button.pack(side="left", padx=2)
+
+    def refresh_random_files():
+        files = get_random_files()
+        menu = random_menu["menu"]
+        menu.delete(0, "end")
+        for f in files:
+            menu.add_command(
+                label=f, command=lambda value=f: selected_random_file.set(value)
+            )
+        selected_random_file.set(files[0])
+        if files == ["（ファイルなし）"]:
+            random_button.config(state="disabled")
+        else:
+            random_button.config(state="normal")
+
+    # 初期化時にランダム発言ファイルがなければボタン無効化
+    if random_files == ["（ファイルなし）"]:
+        random_button.config(state="disabled")
 
     state = "running"
     update_log_box()
